@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <meta charset='UTF-8'>
+    <title>StreamDeck Pro</title>
+    <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css' rel='stylesheet'>
+    <link href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css' rel='stylesheet'>
+    <style>
+        body { background: #121214; color: #e1e1e6; user-select: none; }
+        .deck-grid { display: grid; grid-template-columns: repeat(3, 105px); gap: 15px; justify-content: center; padding: 20px 0; }
+        @media(min-width: 576px) { .deck-grid { grid-template-columns: repeat(4, 120px); gap: 20px; } }
+        .deck-btn { height: 105px; background: linear-gradient(145deg, #202024, #121214); border: 2px solid #29292e; border-radius: 14px; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s; }
+        @media(min-width: 576px) { .deck-btn { height: 120px; } }
+        .deck-btn.active-press { border-color: #00adb5!important; transform: scale(0.93); box-shadow: 0 0 15px rgba(0,173,181,0.4); }
+        .deck-icon { font-size: 2rem; color: #00adb5; }
+    </style>
+</head>
+<body>
+    <div class='container py-4'>
+        <div class='row justify-content-center'>
+            <div class='col-md-8 col-lg-6'>
+                <h2 class='text-center mb-3 fw-bold' style='color:#00adb5;'>StreamDeck Pro</h2>
+                
+                <div class='d-flex justify-content-center gap-2 mb-4'>
+                    <button class='btn btn-sm btn-outline-info' id='layer-b-0' onclick='setLayer(0)'>Profil 1</button>
+                    <button class='btn btn-sm btn-outline-info' id='layer-b-1' onclick='setLayer(1)'>Profil 2</button>
+                    <button class='btn btn-sm btn-outline-info' id='layer-b-2' onclick='setLayer(2)'>Profil 3</button>
+                </div>
+
+                <div class='card bg-dark border-secondary p-3 shadow mb-4'>
+                    <div class='deck-grid' id='macro-container'></div>
+                </div>
+                
+                <div class='card bg-dark border-secondary p-3 shadow'>
+                    <div class='row g-2'>
+                        <div class='col-4'><a href='/editor' class='btn btn-outline-warning w-100 btn-sm text-warning'><i class='bi bi-pencil-square me-1'></i> Editor</a></div>
+                        <div class='col-4'><a href='/ide' class='btn btn-outline-danger w-100 btn-sm text-danger'><i class='bi bi-code-slash me-1'></i> Web-IDE</a></div>
+                        <div class='col-4'><a href='/update' class='btn btn-outline-secondary w-100 btn-sm'><i class='bi bi-upload me-1'></i> OTA</a></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var ws = new WebSocket('ws://' + window.location.hostname + '/ws');
+        var currentLayer = 0;
+        var allMacros = [];
+
+        // Holen der dynamischen Makro-Daten vom ESP32-FS
+        fetch('/api/macros').then(res => res.json()).then(data => {
+            allMacros = data.macros || [];
+            drawGrid();
+        });
+
+        function drawGrid() {
+            var container = document.getElementById('macro-container'); 
+            if(!container) return;
+            container.innerHTML = '';
+            var filtered = allMacros.filter(m => m.layer == currentLayer);
+            if(filtered.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted col-12 my-3">Keine Makros auf dieser Ebene.</div>';
+                return;
+            }
+            filtered.forEach(m => {
+                container.innerHTML += `<button class='deck-btn' id='btn-${m.id}' onmousedown='triggerMacro("${m.id}")' ontouchstart='triggerMacro("${m.id}")'><i class='bi ${m.icon} deck-icon'></i><span class='small text-truncate w-100 px-1'>${m.name}</span></button>`;
+            });
+        }
+
+        function triggerMacro(id) { ws.send('TRIGGER:' + id); }
+        function setLayer(num) { ws.send('SET_LAYER:' + num); }
+
+        ws.onmessage = function(evt) {
+            var msg = evt.data;
+            if(msg.startsWith('LAYER_CHANGED:')) {
+                currentLayer = parseInt(msg.substring(14));
+                document.querySelectorAll('[id^=layer-b-]').forEach(b => b.classList.remove('btn-info', 'text-dark'));
+                var activeB = document.getElementById('layer-b-' + currentLayer); 
+                if(activeB) activeB.classList.add('btn-info', 'text-dark');
+                drawGrid();
+            } else if(msg.startsWith('ACK:')) {
+                var id = msg.substring(4); var btn = document.getElementById('btn-' + id);
+                if(btn) { btn.classList.add('active-press'); setTimeout(() => btn.classList.remove('active-press'), 120); }
+            }
+        };
+        ws.onclose = function() { setTimeout(() => { window.location.reload(); }, 2000); };
+    </script>
+</body>
+</html>

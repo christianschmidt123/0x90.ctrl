@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <title>Macro Editor</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        .icon-grid-item {
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .icon-grid-item:hover {
+            background-color: #0d6efd !important;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="bg-dark text-light p-4">
+    <div class="container" style="max-width: 1000px;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h3><i class="bi bi-sliders"></i> Multi-Hotkey Konfigurator</h3>
+                <p class="text-muted mb-0">Konfiguriere Tastenbelegungen und Hotkeys komplett visuell.</p>
+            </div>
+            <div>
+                <button class="btn btn-success fw-bold" onclick="saveConfig()"><i class="bi bi-floppy"></i> Speichern</button>
+                <a href="/" class="btn btn-outline-secondary ms-2">Zurück</a>
+            </div>
+        </div>
+        
+        <div id="macro-list" class="mb-4">Lade Konfiguration...</div>
+    </div>
+
+    <div class="modal fade" id="iconModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content bg-secondary text-white">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title"><i class="bi bi-grid-3x3-gap"></i> Icon auswählen</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body bg-dark">
+                    <div class="row row-cols-6 g-3 text-center" id="icon-picker-grid">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        var macrosData = [];
+        var activeMacroIndexForIcon = null;
+
+        // Eine feine Auswahl nützlicher Icons für ein MacroPad
+        const availableIcons = [
+            'bi-volume-mute-fill', 'bi-volume-down-fill', 'bi-volume-up-fill',
+            'bi-play-fill', 'bi-pause-fill', 'bi-skip-forward-fill', 'bi-skip-backward-fill',
+            'bi-spotify', 'bi-youtube', 'bi-discord', 'bi-twitch', 'bi-steam',
+            'bi-browser-chrome', 'bi-browser-edge', 'bi-browser-safari', 'bi-globe',
+            'bi-gear-fill', 'bi-envelope-fill', 'bi-chat-dots-fill', 'bi-camera-video-fill',
+            'bi-mic-fill', 'bi-mic-mute-fill', 'bi-code-slash', 'bi-terminal-fill',
+            'bi-folder-fill', 'bi-file-earmark-code', 'bi-copy', 'bi-scissors',
+            'bi-clipboard-fill', 'bi-floppy-fill', 'bi-arrow-repeat', 'bi-house-fill',
+            'bi-brightness-high-fill', 'bi-moon-fill', 'bi-calculator', 'bi-controller'
+        ];
+
+        const allKeys = [
+            'CTRL', 'SHIFT', 'ALT', 
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 
+            'ENTER', 'SPACE', 'BACKSPACE', 'ESC', 'DELETE', 'INSERT', 'HOME', 'END', 'PAGE_UP', 'PAGE_DOWN',
+            'UP', 'DOWN', 'LEFT', 'RIGHT',
+            'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'
+        ];
+        const iconModal = new bootstrap.Modal(document.getElementById('iconModal'));
+
+        // Konfiguration vom ESP32 laden
+        fetch('/api/macros').then(r => r.json()).then(d => { 
+            macrosData = d.macros; 
+            renderMacros(); 
+            buildIconGrid();
+        });
+
+        function renderMacros() {
+            let h = '';
+            macrosData.forEach((m, i) => {
+                let keyArray = m.keys ? m.keys.split('+').filter(k => k.length > 0) : [];
+                
+                h += "<div class='card bg-secondary text-white mb-3 p-3'><div class='row g-2 align-items-center'>";
+                
+                // Spalte 1: Name
+                h += "<div class='col-md-2'><label class='small text-light-50 d-block'>Name</label><input type='text' class='form-control form-control-sm bg-dark text-white border-0' value='" + m.name + "' oninput='macrosData[" + i + "].name=this.value'></div>";
+                
+                // Spalte 2: Typ
+                h += "<div class='col-md-2'><label class='small text-light-50 d-block'>Typ</label><select class='form-select form-select-sm bg-dark text-white border-0' onchange='macrosData[" + i + "].type=parseInt(this.value); macrosData[" + i + "].keys=\"\"; renderMacros()'><option value='0' " + (m.type==0?"selected":"") + ">Keyboard</option><option value='1' " + (m.type==1?"selected":"") + ">Media (Audio)</option></select></div>";
+                
+                // Spalte 3: Hotkey-Kette
+                h += "<div class='col-md-4'><label class='small text-light-50 d-block'>Tastatur-Kombination</label>";
+                if(m.type == 1) {
+                    h += "<select class='form-select form-select-sm bg-dark text-white border-0' onchange='macrosData[" + i + "].keys=this.value'>";
+                    h += "<option value='MUTE' " + (m.keys=='MUTE'?"selected":"") + ">Stummschalten (Mute)</option>";
+                    h += "<option value='VOL_UP' " + (m.keys=='VOL_UP'?"selected":"") + ">Lauter (Vol +)</option>";
+                    h += "<option value='VOL_DOWN' " + (m.keys=='VOL_DOWN'?"selected":"") + ">Leiser (Vol -)</option>";
+                    h += "</select>";
+                } else {
+                    h += "<div class='d-flex flex-wrap gap-1 align-items-center bg-dark p-2 rounded' style='min-height:38px;'>";
+                    keyArray.forEach((key, kIdx) => {
+                        h += "<span class='badge bg-info d-flex align-items-center gap-1'>" + key + "<i class='bi bi-x-circle-fill text-danger' style='cursor:pointer;' onclick='removeKey(" + i + "," + kIdx + ")'></i></span>";
+                    });
+                    h += "<select class='form-select form-select-sm bg-secondary text-white border-0 py-0 px-1' style='width:auto; max-width:100px;' onchange='addKey(" + i + ", this.value); this.value=\"\";'><option value=''>+ Taste</option>";
+                    allKeys.forEach(k => { h += "<option value='" + k + "'>" + k + "</option>"; });
+                    h += "</select></div>";
+                }
+                h += "</div>";
+                
+                // Spalte 4: GPIO
+                h += "<div class='col-md-1'><label class='small text-light-50 d-block'>GPIO</label><input type='number' class='form-control form-control-sm bg-dark text-white border-0' value='" + m.gpio + "' oninput='macrosData[" + i + "].gpio=parseInt(this.value)'></div>";
+                
+                // Spalte 5: Visueller Icon-Button (NEU)
+                h += "<div class='col-md-3'><label class='small text-light-50 d-block'>Icon</label>";
+                h += "<button class='btn btn-sm btn-dark w-100 text-start border-0 d-flex align-items-center justify-content-between py-2' onclick='openIconPicker(" + i + ")'>";
+                h += "<span><i class='" + (m.icon || 'bi-question-lg') + " me-2 fs-5' id='btn-icon-" + i + "'></i> <span class='small text-muted'>" + (m.icon || 'Keins') + "</span></span>";
+                h += "<i class='bi bi-chevron-down small text-muted'></i>";
+                h += "</button></div>";
+                
+                h += "</div></div>";
+            });
+            document.getElementById('macro-list').innerHTML = h;
+        }
+
+        // --- ICON PICKER LOGIK ---
+        function buildIconGrid() {
+            let gridHtml = '';
+            availableIcons.forEach(icon => {
+                gridHtml += `<div class="col">
+                    <div class="bg-secondary p-3 rounded icon-grid-item text-center fs-3" onclick="selectIcon('${icon}')" title="${icon}">
+                        <i class="${icon}"></i>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('icon-picker-grid').innerHTML = gridHtml;
+        }
+
+        function openIconPicker(index) {
+            activeMacroIndexForIcon = index;
+            iconModal.show();
+        }
+
+        function selectIcon(iconClass) {
+            if(activeMacroIndexForIcon !== null) {
+                macrosData[activeMacroIndexForIcon].icon = iconClass;
+                renderMacros();
+            }
+            iconModal.hide();
+        }
+
+        // --- KEY LOGIK ---
+        function addKey(macroIdx, key) {
+            if(!key) return;
+            let currentKeys = macrosData[macroIdx].keys ? macrosData[macroIdx].keys.split('+').filter(k=>k.length>0) : [];
+            currentKeys.push(key);
+            macrosData[macroIdx].keys = currentKeys.join('+');
+            renderMacros();
+        }
+
+        function removeKey(macroIdx, keyIdx) {
+            let currentKeys = macrosData[macroIdx].keys.split('+').filter(k=>k.length>0);
+            currentKeys.splice(keyIdx, 1);
+            macrosData[macroIdx].keys = currentKeys.join('+');
+            renderMacros();
+        }
+
+        function saveConfig() {
+            fetch('/api/macros/save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({macros: macrosData})
+            }).then(r => {
+                if(r.ok) { alert('Erfolgreich gespeichert!'); location.reload(); } 
+                else { alert('Fehler beim Speichern'); }
+            });
+        }
+    </script>
+</body>
+</html>

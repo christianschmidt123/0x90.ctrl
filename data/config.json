@@ -1,0 +1,7 @@
+{
+  "macros": [
+    {"id": "mute_id", "name": "Audio Mute", "type": 1, "keys": "MUTE", "gpio": 4, "icon": "bi-volume-mute-fill", "layer": 0},
+    {"id": "volup_id", "name": "Lauter", "type": 1, "keys": "VOL_UP", "gpio": 5, "icon": "bi-volume-up-fill", "layer": 0},
+    {"id": "voldown_id", "name": "Leiser", "type": 1, "keys": "VOL_DOWN", "gpio": 6, "icon": "bi-volume-down-fill", "layer": 0}
+  ]
+}

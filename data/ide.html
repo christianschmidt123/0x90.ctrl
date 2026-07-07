@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <title>ESP32 Web-IDE</title>
+    <meta charset="UTF-8">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        #editor { height: 600px; width: 100%; border-radius: 4px; }
+        .file-item { cursor: pointer; padding: 8px; border-bottom: 1px solid #383d41; }
+        .file-item:hover { background-color: #343a40; }
+        .file-active { background-color: #0d6efd !important; }
+    </style>
+</head>
+<body class="bg-dark text-light p-4">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3><i class="bi bi-code-square"></i> Web-IDE & Dateisystem</h3>
+            <div>
+                <button class="btn btn-primary fw-bold" onclick="saveCurrentFile()"><i class="bi bi-cloud-arrow-up"></i> Datei speichern</button>
+                <a href="/" class="btn btn-outline-secondary ms-2">Zurück</a>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-3 bg-secondary rounded p-3" style="min-height: 600px;">
+                <h5><i class="bi bi-folder2-open"></i> Dateisystem</h5>
+                <hr>
+                <div id="file-list">Lade Dateien...</div>
+            </div>
+            
+            <div class="col-md-9">
+                <h5 id="current-file-title" class="text-info">Keine Datei ausgewählt</h5>
+                <div id="editor"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.js"></script>
+    <script>
+        var editor = ace.edit("editor");
+        editor.setTheme("ace/theme/monokai");
+        editor.session.setMode("ace/mode/json");
+        editor.setFontSize(14);
+
+        var currentPath = "";
+
+        // Dateien vom ESP laden
+        function loadFileList() {
+            fetch('/api/listfiles').then(r => r.json()).then(data => {
+                let html = '';
+                data.files.forEach(f => {
+                    html += `<div class="file-item d-flex justify-content-between align-items-center" id="file-${f.name}" onclick="loadFile('${f.name}')">
+                        <span><i class="bi bi-file-earmark-text me-2"></i>${f.name}</span>
+                        <span class="badge bg-dark text-muted small">${(f.size/1024).toFixed(2)} KB</span>
+                    </div>`;
+                });
+                document.getElementById('file-list').innerHTML = html || '<p class="text-muted">Keine Dateien gefunden</p>';
+                if(currentPath) document.getElementById(`file-${currentPath}`)?.classList.add('file-active');
+            });
+        }
+
+        // Inhalt einer bestimmten Datei in den Editor laden
+        function loadFile(filename) {
+            currentPath = filename;
+            document.querySelectorAll('.file-item').forEach(el => el.classList.remove('file-active'));
+            document.getElementById(`file-${filename}`).classList.add('file-active');
+            document.getElementById('current-file-title').innerText = "Bearbeite: /" + filename;
+
+            // Editor-Modus basierend auf Dateiendung anpassen
+            if(filename.endsWith('.json')) editor.session.setMode("ace/mode/json");
+            else if(filename.endsWith('.html')) editor.session.setMode("ace/mode/html");
+            else editor.session.setMode("ace/mode/text");
+
+            fetch('/' + filename).then(r => r.text()).then(text => {
+                editor.setValue(text, -1);
+            });
+        }
+
+        // Datei zurück an den ESP32 senden
+        function saveCurrentFile() {
+            if(!currentPath) { alert('Bitte wähle zuerst eine Datei aus!'); return; }
+            
+            // Wir nutzen die bestehende /api/macros/save Logik universell oder laden sie via POST hoch
+            let fileData = editor.getValue();
+            let targetUrl = currentPath === "config.json" ? "/api/macros/save" : "/api/macros/save"; // Falls du spezifische Routen hast, sonst generischer Upload:
+            
+            fetch(targetUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: fileData
+            }).then(r => {
+                if(r.ok) { alert('Datei erfolgreich überschrieben!'); loadFileList(); } 
+                else { alert('Fehler beim Speichern der Datei.'); }
+            });
+        }
+
+        loadFileList();
+    </script>
+</body>
+</html>
