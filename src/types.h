@@ -6,6 +6,8 @@
 
 // Platzhalter: kein GPIO-Pin zugewiesen
 #define NO_PIN -1
+// Semantische Firmware-Version (Major.Minor.Patch)
+#define FIRMWARE_VERSION "0.0.2"
 // Aktuelle Konfigurationsversion
 const int CURRENT_VERSION = 1;
 

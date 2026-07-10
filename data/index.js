@@ -72,4 +72,12 @@ function loadMacros() {
 window.addEventListener('load', () => {
     initWebSocket();
     loadMacros();
+    // Firmware-Version vom ESP32 laden und anzeigen
+    fetch('/api/version')
+        .then(r => r.json())
+        .then(d => {
+            const el = document.getElementById('firmware-version');
+            if (el) el.textContent = 'fw v' + d.version;
+        })
+        .catch(() => {});
 });

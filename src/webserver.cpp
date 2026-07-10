@@ -3,6 +3,8 @@
 #include <ESPAsyncWebServer.h>
 // LittleFS-Dateisystem
 #include <LittleFS.h>
+// OTA-Firmware-Update
+#include <Update.h>
 // Eigene Module
 #include "types.h"
 #include "logger.h"
@@ -13,6 +15,9 @@ extern AsyncWebServer server;
 extern AsyncWebSocket ws;
 extern std::vector<MacroDefinition> myMacros;
 extern int activeLayer;
+// Neustart-Flag (definiert in main.cpp)
+extern bool shouldRestart;
+extern unsigned long restartMillis;
 
 // -----------------------------------------------------------------------
 // WebSocket-Ereignis-Handler
@@ -217,6 +222,73 @@ static void setupSTARoutes() {
       }
     }
   );
+
+  // OTA-Update-Seite ausliefern
+  server.on("/update", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (LittleFS.exists("/update.html")) request->send(LittleFS, "/update.html", "text/html");
+    else                                 request->send(404, "text/plain", "update.html fehlt im LittleFS!");
+  });
+
+  // OTA-Firmware-Upload über POST /update  (flasht den Firmware-Bereich, U_FLASH)
+  server.on("/update", HTTP_POST,
+    [](AsyncWebServerRequest* request) {
+      bool ok = !Update.hasError();
+      logToWeb(ok ? "OTA-Firmware erfolgreich. Neustart in 1s..." : "OTA-Firmware fehlgeschlagen: " + String(Update.errorString()));
+      request->send(200, "text/plain", ok ? "Firmware-Update erfolgreich! Das Geraet startet neu..." : "Fehler: " + String(Update.errorString()));
+      if (ok) { shouldRestart = true; restartMillis = millis() + 1500; }
+    },
+    [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+      if (index == 0) {
+        logToWeb("OTA-Firmware-Upload gestartet: " + filename);
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
+          logToWeb("Update.begin(U_FLASH) fehlgeschlagen: " + String(Update.errorString()));
+        }
+      }
+      if (Update.isRunning()) {
+        if (Update.write(data, len) != len) {
+          logToWeb("Update.write() Fehler: " + String(Update.errorString()));
+        }
+      }
+      if (final) {
+        if (Update.end(true)) { logToWeb("Firmware-Upload fertig: " + String(index + len) + " Bytes."); }
+        else                  { logToWeb("Update.end() fehlgeschlagen: " + String(Update.errorString())); }
+      }
+    }
+  );
+
+  // OTA-Dateisystem-Upload über POST /update-fs  (flasht den LittleFS-Bereich, U_SPIFFS)
+  // Datei: .pio/build/<env>/littlefs.bin  (PlatformIO-Target: buildfs)
+  server.on("/update-fs", HTTP_POST,
+    [](AsyncWebServerRequest* request) {
+      bool ok = !Update.hasError();
+      logToWeb(ok ? "OTA-Dateisystem erfolgreich. Neustart in 1s..." : "OTA-Dateisystem fehlgeschlagen: " + String(Update.errorString()));
+      request->send(200, "text/plain", ok ? "Dateisystem-Update erfolgreich! Das Geraet startet neu..." : "Fehler: " + String(Update.errorString()));
+      if (ok) { shouldRestart = true; restartMillis = millis() + 1500; }
+    },
+    [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+      if (index == 0) {
+        logToWeb("OTA-Dateisystem-Upload gestartet: " + filename);
+        // U_SPIFFS flasht die LittleFS-Partition (gleiche Partition, anderer Name)
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_SPIFFS)) {
+          logToWeb("Update.begin(U_SPIFFS) fehlgeschlagen: " + String(Update.errorString()));
+        }
+      }
+      if (Update.isRunning()) {
+        if (Update.write(data, len) != len) {
+          logToWeb("Update.write() Fehler: " + String(Update.errorString()));
+        }
+      }
+      if (final) {
+        if (Update.end(true)) { logToWeb("Dateisystem-Upload fertig: " + String(index + len) + " Bytes."); }
+        else                  { logToWeb("Update.end() fehlgeschlagen: " + String(Update.errorString())); }
+      }
+    }
+  );
+
+  // API: Firmware-Version zurückgeben
+  server.on("/api/version", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(200, "application/json", "{\"version\":\"" FIRMWARE_VERSION "\"}");
+  });
 
   // API: Aktuelle config.json als JSON ausliefern
   server.on("/api/macros", HTTP_GET, [](AsyncWebServerRequest* request) {
