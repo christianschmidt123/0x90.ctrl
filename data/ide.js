@@ -57,10 +57,14 @@ function saveFile() {
     if (!activeFile) { alert("Bitte wähle zuerst eine Datei aus!"); return; }
     const content = editor.getValue();
 
+    // Multipart-Upload verwenden: zuverlässig für alle Dateitypen (inkl. HTML)
+    // und vermeidet Probleme mit Sonderzeichen (<, >, ", =) im Raw-Body-Handler.
+    const formData = new FormData();
+    formData.append('file', new Blob([content], { type: 'text/plain' }), activeFile);
+
     fetch('/api/macros/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain', 'X-Filename': activeFile },
-        body: content
+        body: formData
     }).then(r => {
         if (r.ok) {
             alert(activeFile + " erfolgreich gespeichert!");
