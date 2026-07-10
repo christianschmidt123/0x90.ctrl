@@ -1,90 +1,244 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <meta charset='UTF-8'>
-    <title>StreamDeck Pro</title>
-    <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css' rel='stylesheet'>
-    <link href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css' rel='stylesheet'>
+    <title>0x90.deck - Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
-        body { background: #121214; color: #e1e1e6; user-select: none; }
-        .deck-grid { display: grid; grid-template-columns: repeat(3, 105px); gap: 15px; justify-content: center; padding: 20px 0; }
-        @media(min-width: 576px) { .deck-grid { grid-template-columns: repeat(4, 120px); gap: 20px; } }
-        .deck-btn { height: 105px; background: linear-gradient(145deg, #202024, #121214); border: 2px solid #29292e; border-radius: 14px; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s; }
-        @media(min-width: 576px) { .deck-btn { height: 120px; } }
-        .deck-btn.active-press { border-color: #00adb5!important; transform: scale(0.93); box-shadow: 0 0 15px rgba(0,173,181,0.4); }
-        .deck-icon { font-size: 2rem; color: #00adb5; }
+        body {
+            background-color: #12141c;
+            color: #ffffff;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        
+        .header-title {
+            color: #00adb5;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(0, 173, 181, 0.3);
+        }
+
+        /* --- DASHBOARD LAYOUT GRID --- */
+        #deck-container {
+            display: grid;
+            /* 3 Spalten Matrix (je 130px), 1 Spalte Freiraum/Versatz (40px), 1 Spalte Profiltasten (130px) */
+            grid-template-columns: repeat(3, 130px) 40px 130px;
+            gap: 15px;
+            justify-content: center;
+            align-content: center;
+            margin: 40px auto;
+            background: #1a1d26;
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid #252a37;
+            max-width: fit-content;
+        }
+
+        /* Basis-Style für die Tasten */
+        .macro-btn {
+            background: #222633;
+            border: 1px solid #2d3345;
+            border-radius: 12px;
+            padding: 25px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            position: relative;
+        }
+        
+        .macro-btn:hover {
+            background: #2a3042;
+            border-color: #00adb5;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 173, 181, 0.2);
+        }
+
+        /* --- NEU: EFFEKT FÜR DAS AUFLEUCHTEN BEI DRUCK (PHYSIKALSCH & WEB) --- */
+        .macro-btn.active-press {
+            background: rgba(0, 173, 181, 0.2) !important;
+            border-color: #00adb5 !important;
+            box-shadow: 0 0 20px rgba(0, 173, 181, 0.6) !important;
+            transform: scale(0.95) translateY(0px);
+        }
+
+        /* Spezifischer Effekt für Profiltasten beim Aufleuchten */
+        .macro-btn:nth-child(10).active-press, .macro-btn:nth-child(11).active-press {
+            background: rgba(255, 159, 67, 0.2) !important;
+            border-color: #ff9f43 !important;
+            box-shadow: 0 0 20px rgba(255, 159, 67, 0.6) !important;
+        }
+
+        .macro-icon {
+            font-size: 2rem;
+            color: #00adb5;
+            margin-bottom: 10px;
+            transition: color 0.15s;
+        }
+
+        .macro-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #a0aec0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        /* --- GRID POSITIONIERUNG NACH CONFIG-REIHENFOLGE --- */
+        /* Reihe 1 (Hauptmatrix) */
+        .macro-btn:nth-child(1) { grid-column: 1; grid-row: 1; }
+        .macro-btn:nth-child(2) { grid-column: 2; grid-row: 1; }
+        .macro-btn:nth-child(3) { grid-column: 3; grid-row: 1; }
+
+        /* Reihe 2 (Hauptmatrix) */
+        .macro-btn:nth-child(4) { grid-column: 1; grid-row: 2; }
+        .macro-btn:nth-child(5) { grid-column: 2; grid-row: 2; }
+        .macro-btn:nth-child(6) { grid-column: 3; grid-row: 2; }
+
+        /* Reihe 3 (Hauptmatrix) */
+        .macro-btn:nth-child(7) { grid-column: 1; grid-row: 3; }
+        .macro-btn:nth-child(8) { grid-column: 2; grid-row: 3; }
+        .macro-btn:nth-child(9) { grid-column: 3; grid-row: 3; }
+
+        /* Profiltasten rechts versetzt */
+        .macro-btn:nth-child(10) { grid-column: 5; grid-row: 2; border-color: #ff9f43; } 
+        .macro-btn:nth-child(11) { grid-column: 5; grid-row: 3; border-color: #ff9f43; } 
+        
+        .macro-btn:nth-child(10) .macro-icon, .macro-btn:nth-child(11) .macro-icon {
+            color: #ff9f43;
+        }
+
+        /* Unteres Navigations-Menü */
+        .nav-footer {
+            background: #1a1d26;
+            border: 1px solid #252a37;
+            border-radius: 12px;
+            max-width: fit-content;
+            margin: 0 auto;
+        }
+        .nav-link-custom {
+            color: #a0aec0;
+            font-weight: 500;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .nav-link-custom:hover {
+            color: #00adb5;
+        }
     </style>
 </head>
-<body>
-    <div class='container py-4'>
-        <div class='row justify-content-center'>
-            <div class='col-md-8 col-lg-6'>
-                <h2 class='text-center mb-3 fw-bold' style='color:#00adb5;'>StreamDeck Pro</h2>
-                
-                <div class='d-flex justify-content-center gap-2 mb-4'>
-                    <button class='btn btn-sm btn-outline-info' id='layer-b-0' onclick='setLayer(0)'>Profil 1</button>
-                    <button class='btn btn-sm btn-outline-info' id='layer-b-1' onclick='setLayer(1)'>Profil 2</button>
-                    <button class='btn btn-sm btn-outline-info' id='layer-b-2' onclick='setLayer(2)'>Profil 3</button>
-                </div>
+<body class="p-4">
 
-                <div class='card bg-dark border-secondary p-3 shadow mb-4'>
-                    <div class='deck-grid' id='macro-container'></div>
-                </div>
-                
-                <div class='card bg-dark border-secondary p-3 shadow'>
-                    <div class='row g-2'>
-                        <div class='col-4'><a href='/editor' class='btn btn-outline-warning w-100 btn-sm text-warning'><i class='bi bi-pencil-square me-1'></i> Editor</a></div>
-                        <div class='col-4'><a href='/ide' class='btn btn-outline-danger w-100 btn-sm text-danger'><i class='bi bi-code-slash me-1'></i> Web-IDE</a></div>
-                        <div class='col-4'><a href='/update' class='btn btn-outline-secondary w-100 btn-sm'><i class='bi bi-upload me-1'></i> OTA</a></div>
-                    </div>
-                </div>
+    <div class="container text-center">
+        <h1 class="header-title my-3"><i class="bi bi-cpu-fill"></i> 0x90.deck Pro</h1>
+        
+        <div class="d-flex justify-content-center gap-2 mb-4" id="layer-container">
+            <button class="btn btn-outline-info active" onclick="setLayer(0)">Profil 1</button>
+            <button class="btn btn-outline-info" onclick="setLayer(1)">Profil 2</button>
+            <button class="btn btn-outline-info" onclick="setLayer(2)">Profil 3</button>
+        </div>
+
+        <div id="deck-container">
             </div>
+
+        <div class="nav-footer p-3 d-flex gap-5 justify-content-center shadow">
+            <a href="/editor" class="nav-link-custom"><i class="bi bi-pencil-square text-warning"></i> Editor</a>
+            <a href="/ide" class="nav-link-custom"><i class="bi bi-code-slash text-danger"></i> Web-IDE</a>
+            <a href="/update" class="nav-link-custom"><i class="bi bi-cloud-arrow-up text-success"></i> OTA Update</a>
         </div>
     </div>
 
     <script>
-        var ws = new WebSocket('ws://' + window.location.hostname + '/ws');
-        var currentLayer = 0;
-        var allMacros = [];
+        let gateway = `ws://${window.location.hostname}/ws`;
+        let websocket;
+        let currentLayer = 0;
 
-        // Holen der dynamischen Makro-Daten vom ESP32-FS
-        fetch('/api/macros').then(res => res.json()).then(data => {
-            allMacros = data.macros || [];
-            drawGrid();
-        });
-
-        function drawGrid() {
-            var container = document.getElementById('macro-container'); 
-            if(!container) return;
-            container.innerHTML = '';
-            var filtered = allMacros.filter(m => m.layer == currentLayer);
-            if(filtered.length === 0) {
-                container.innerHTML = '<div class="text-center text-muted col-12 my-3">Keine Makros auf dieser Ebene.</div>';
-                return;
-            }
-            filtered.forEach(m => {
-                container.innerHTML += `<button class='deck-btn' id='btn-${m.id}' onmousedown='triggerMacro("${m.id}")' ontouchstart='triggerMacro("${m.id}")'><i class='bi ${m.icon} deck-icon'></i><span class='small text-truncate w-100 px-1'>${m.name}</span></button>`;
-            });
+        function initWebSocket() {
+            console.log('Versuche WebSocket-Verbindung...');
+            websocket = new WebSocket(gateway);
+            websocket.onopen = () => console.log('WebSocket geöffnet');
+            websocket.onclose = () => setTimeout(initWebSocket, 2000);
+            websocket.onmessage = (event) => {
+                if (event.data.startsWith("LAYER_CHANGED:")) {
+                    currentLayer = parseInt(event.data.substring(14));
+                    updateLayerUI();
+                } 
+                // NEU/REPARIERT: Lauscht auf die Bestätigung vom ESP32, wenn eine Taste auslöst
+                else if (event.data.startsWith("ACK:")) {
+                    const macroId = event.data.substring(4);
+                    flashButtonUI(macroId);
+                }
+            };
         }
 
-        function triggerMacro(id) { ws.send('TRIGGER:' + id); }
-        function setLayer(num) { ws.send('SET_LAYER:' + num); }
-
-        ws.onmessage = function(evt) {
-            var msg = evt.data;
-            if(msg.startsWith('LAYER_CHANGED:')) {
-                currentLayer = parseInt(msg.substring(14));
-                document.querySelectorAll('[id^=layer-b-]').forEach(b => b.classList.remove('btn-info', 'text-dark'));
-                var activeB = document.getElementById('layer-b-' + currentLayer); 
-                if(activeB) activeB.classList.add('btn-info', 'text-dark');
-                drawGrid();
-            } else if(msg.startsWith('ACK:')) {
-                var id = msg.substring(4); var btn = document.getElementById('btn-' + id);
-                if(btn) { btn.classList.add('active-press'); setTimeout(() => btn.classList.remove('active-press'), 120); }
+        // Lässt den Button im Browser visuell aufleuchten
+        function flashButtonUI(macroId) {
+            const btnNode = document.getElementById("btn_" + macroId);
+            if (btnNode) {
+                btnNode.classList.add("active-press");
+                setTimeout(() => {
+                    btnNode.classList.remove("active-press");
+                }, 150); // Leuchtdauer in Millisekunden
             }
-        };
-        ws.onclose = function() { setTimeout(() => { window.location.reload(); }, 2000); };
+        }
+
+        function triggerMacro(id) {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send("TRIGGER:" + id);
+            }
+        }
+
+        function setLayer(layerId) {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send("SET_LAYER:" + layerId);
+            }
+        }
+
+        function updateLayerUI() {
+            document.querySelectorAll('#layer-container button').forEach((btn, idx) => {
+                if(idx === currentLayer) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            loadMacros();
+        }
+
+        function loadMacros() {
+            fetch('/api/macros')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('deck-container');
+                    container.innerHTML = ''; // Leeren
+
+                    // Filtere Makros für das aktuelle Profil
+                    const filtered = data.macros.filter(m => m.layer === currentLayer);
+
+                    filtered.forEach(macro => {
+                        const btn = document.createElement('div');
+                        btn.className = 'macro-btn';
+                        // NEU: ID dem DOM-Element zuweisen, damit das WebSocket-ACK den Button findet
+                        btn.id = "btn_" + macro.id; 
+                        btn.onclick = () => triggerMacro(macro.id);
+                        
+                        btn.innerHTML = `
+                            <i class="bi ${macro.icon || 'bi-bookmark'} macro-icon"></i>
+                            <div class="macro-name">${macro.name}</div>
+                        `;
+                        container.appendChild(btn);
+                    });
+                }).catch(err => console.error("Fehler beim Laden der Makros:", err));
+        }
+
+        window.addEventListener('load', () => {
+            initWebSocket();
+            loadMacros();
+        });
     </script>
 </body>
 </html>

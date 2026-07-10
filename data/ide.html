@@ -1,101 +1,115 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <title>ESP32 Web-IDE</title>
+    <title>0x90.deck - Web IDE</title>
     <meta charset="UTF-8">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.js"></script>
     <style>
-        #editor { height: 600px; width: 100%; border-radius: 4px; }
-        .file-item { cursor: pointer; padding: 8px; border-bottom: 1px solid #383d41; }
-        .file-item:hover { background-color: #343a40; }
-        .file-active { background-color: #0d6efd !important; }
+        body { background-color: #12141c; color: #fff; font-family: sans-serif; }
+        #editor { height: 650px; border-radius: 8px; border: 1px solid #252a37; font-size: 14px; }
+        .file-item { cursor: pointer; padding: 8px 12px; border-radius: 6px; transition: background 0.2s; }
+        .file-item:hover { background: #222633; color: #00adb5; }
+        .file-active { background: #00adb5 !important; color: #12141c !important; font-weight: bold; }
+        .sidebar { background: #1a1d26; border-right: 1px solid #252a37; height: 100vh; }
     </style>
 </head>
-<body class="bg-dark text-light p-4">
+<body>
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3><i class="bi bi-code-square"></i> Web-IDE & Dateisystem</h3>
-            <div>
-                <button class="btn btn-primary fw-bold" onclick="saveCurrentFile()"><i class="bi bi-cloud-arrow-up"></i> Datei speichern</button>
-                <a href="/" class="btn btn-outline-secondary ms-2">Zurück</a>
-            </div>
-        </div>
-        
         <div class="row">
-            <div class="col-md-3 bg-secondary rounded p-3" style="min-height: 600px;">
-                <h5><i class="bi bi-folder2-open"></i> Dateisystem</h5>
-                <hr>
-                <div id="file-list">Lade Dateien...</div>
+            <div class="col-md-3 sidebar p-4">
+                <h4 class="text-info mb-4"><i class="bi bi-folder2-open"></i> 0x90.FS</h4>
+                <div id="file-list" class="list-group list-group-flush">
+                    <div class="text-muted">Lade Dateien...</div>
+                </div>
+                <hr class="my-4">
+                <button class="btn btn-success w-100 mb-2" onclick="saveFile()"><i class="bi bi-floppy"></i> Speichern</button>
+                <a href="/" class="btn btn-outline-secondary w-100"><i class="bi bi-arrow-left"></i> Dashboard</a>
             </div>
-            
-            <div class="col-md-9">
-                <h5 id="current-file-title" class="text-info">Keine Datei ausgewählt</h5>
+            <div class="col-md-9 p-4">
+                <h3 id="current-file-title" class="mb-3 text-secondary">Keine Datei ausgewählt</h3>
                 <div id="editor"></div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.js"></script>
     <script>
         var editor = ace.edit("editor");
-        editor.setTheme("ace/theme/monokai");
-        editor.session.setMode("ace/mode/json");
-        editor.setFontSize(14);
+        editor.setTheme("ace/theme/tomorrow_night_eighties");
+        editor.session.setMode("ace/mode/html");
+        var activeFile = "";
 
-        var currentPath = "";
-
-        // Dateien vom ESP laden
         function loadFileList() {
-            fetch('/api/listfiles').then(r => r.json()).then(data => {
-                let html = '';
-                data.files.forEach(f => {
-                    html += `<div class="file-item d-flex justify-content-between align-items-center" id="file-${f.name}" onclick="loadFile('${f.name}')">
-                        <span><i class="bi bi-file-earmark-text me-2"></i>${f.name}</span>
-                        <span class="badge bg-dark text-muted small">${(f.size/1024).toFixed(2)} KB</span>
-                    </div>`;
+            // Cache-Buster auch für die Dateiliste
+            fetch('/api/listfiles?t=' + Date.now())
+                .then(r => r.json())
+                .then(data => {
+                    const list = document.getElementById('file-list');
+                    list.innerHTML = '';
+                    data.files.forEach(f => {
+                        const div = document.createElement('div');
+                        div.className = 'file-item p-2 mb-1';
+                        if(f.name === activeFile) div.className += ' file-active';
+                        div.innerHTML = `<i class="bi bi-file-earmark-code"></i> ${f.name} <small class="text-muted" style="float:right;">${f.size} B</small>`;
+                        div.onclick = () => openFile(f.name);
+                        list.appendChild(div);
+                    });
                 });
-                document.getElementById('file-list').innerHTML = html || '<p class="text-muted">Keine Dateien gefunden</p>';
-                if(currentPath) document.getElementById(`file-${currentPath}`)?.classList.add('file-active');
-            });
         }
 
-        // Inhalt einer bestimmten Datei in den Editor laden
-        function loadFile(filename) {
-            currentPath = filename;
-            document.querySelectorAll('.file-item').forEach(el => el.classList.remove('file-active'));
-            document.getElementById(`file-${filename}`).classList.add('file-active');
-            document.getElementById('current-file-title').innerText = "Bearbeite: /" + filename;
-
-            // Editor-Modus basierend auf Dateiendung anpassen
+        function openFile(filename) {
+            activeFile = filename;
+            document.getElementById('current-file-title').innerText = "Editiere: /" + filename;
+            
             if(filename.endsWith('.json')) editor.session.setMode("ace/mode/json");
             else if(filename.endsWith('.html')) editor.session.setMode("ace/mode/html");
             else editor.session.setMode("ace/mode/text");
 
-            fetch('/' + filename).then(r => r.text()).then(text => {
-                editor.setValue(text, -1);
+            // Übergebe einen Zeitstempel (?t=...), um den Browser-Cache zu umgehen
+            let url = (filename === "config.json" || filename === "/config.json") ? "/api/macros" : "/" + filename;
+            url += "?t=" + Date.now();
+            
+            fetch(url)
+                .then(r => { if(!r.ok) throw new Error(); return r.text(); })
+                .then(text => { 
+                    editor.setValue(text, -1); 
+                    // Setze den Cursor ganz nach oben und lösche das "Undo"-Gedächtnis des Editors
+                    editor.session.getUndoManager().reset();
+                })
+                .catch(() => { editor.setValue("Fehler beim Laden oder Datei ist leer.", -1); });
+            
+            // Aktualisiere die Highlight-Auswahl in der Sidebar
+            document.querySelectorAll('.file-item').forEach(el => {
+                if(el.innerText.includes(filename)) el.classList.add('file-active');
+                else el.classList.remove('file-active');
             });
         }
 
-        // Datei zurück an den ESP32 senden
-        function saveCurrentFile() {
-            if(!currentPath) { alert('Bitte wähle zuerst eine Datei aus!'); return; }
-            
-            // Wir nutzen die bestehende /api/macros/save Logik universell oder laden sie via POST hoch
-            let fileData = editor.getValue();
-            let targetUrl = currentPath === "config.json" ? "/api/macros/save" : "/api/macros/save"; // Falls du spezifische Routen hast, sonst generischer Upload:
-            
-            fetch(targetUrl, {
+        function saveFile() {
+            if(!activeFile) { alert("Bitte wähle zuerst eine Datei aus!"); return; }
+            const content = editor.getValue();
+
+            fetch('/api/macros/save', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: fileData
-            }).then(r => {
-                if(r.ok) { alert('Datei erfolgreich überschrieben!'); loadFileList(); } 
-                else { alert('Fehler beim Speichern der Datei.'); }
+                headers: { 'Content-Type': 'text/plain', 'X-Filename': activeFile },
+                body: content
+            })
+            .then(r => {
+                if(r.ok) {
+                    alert(activeFile + " erfolgreich gespeichert!");
+                    // Zwinge den Editor, die Datei sofort mit dem neuen Zeitstempel neu zu laden
+                    setTimeout(() => {
+                        openFile(activeFile);
+                        loadFileList();
+                    }, 300);
+                } else {
+                    alert("Fehler beim Speichern auf dem ESP32.");
+                }
             });
         }
 
-        loadFileList();
+        window.onload = () => { loadFileList(); };
     </script>
 </body>
 </html>

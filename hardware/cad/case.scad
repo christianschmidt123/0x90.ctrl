@@ -6,10 +6,10 @@
 $fn = 64;
 
 // --- PARAMETER: SCHALTER & LAYOUT ---
-switch_w = 15.0;
-switch_h = 15.0;
+switch_w = 14.0;
+switch_h = 14.0;
 switch_spacing = 20.0;
-plate_thickness = 3.0;
+plate_thickness = 1.5;
 
 // --- PARAMETER: MATRIX & LAYOUT ---
 matrix_cols = 3;
@@ -74,8 +74,8 @@ module switch_cutouts() {
         }
     }
     for (i = [0 : profile_count - 1]) {
-        x_pos = outer_margin + 3.0 + matrix_w + 4.0;
-        y_pos = outer_margin + 3.0 + profile_offset_y + (i * switch_spacing);
+        x_pos = outer_margin + 8.0 + matrix_w + 6.0;
+        y_pos = outer_margin + 8.0 + profile_offset_y + (i * switch_spacing);
         translate([x_pos, y_pos, -1])
             cube([switch_w, switch_h, plate_thickness + 2]);
     }
