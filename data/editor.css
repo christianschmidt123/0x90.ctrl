@@ -1,0 +1,10 @@
+.icon-grid-item {
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.icon-grid-item:hover {
+    background-color: #0d6efd !important;
+    transform: scale(1.1);
+}

@@ -1,0 +1,129 @@
+body {
+    background-color: #12141c;
+    color: #ffffff;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.header-title {
+    color: #00adb5;
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(0, 173, 181, 0.3);
+}
+
+/* --- DASHBOARD LAYOUT GRID --- */
+#deck-container {
+    display: grid;
+    /* 3 Spalten Matrix (je 130px), 1 Spalte Freiraum/Versatz (40px), 1 Spalte Profiltasten (130px) */
+    grid-template-columns: repeat(3, 130px) 40px 130px;
+    gap: 15px;
+    justify-content: center;
+    align-content: center;
+    margin: 40px auto;
+    background: #1a1d26;
+    padding: 30px;
+    border-radius: 16px;
+    border: 1px solid #252a37;
+    max-width: fit-content;
+}
+
+/* Basis-Style für die Tasten */
+.macro-btn {
+    background: #222633;
+    border: 1px solid #2d3345;
+    border-radius: 12px;
+    padding: 25px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    position: relative;
+}
+
+.macro-btn:hover {
+    background: #2a3042;
+    border-color: #00adb5;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 173, 181, 0.2);
+}
+
+/* Effekt beim Drücken (physisch & WebSocket-ACK) */
+.macro-btn.active-press {
+    background: rgba(0, 173, 181, 0.2) !important;
+    border-color: #00adb5 !important;
+    box-shadow: 0 0 20px rgba(0, 173, 181, 0.6) !important;
+    transform: scale(0.95) translateY(0px);
+}
+
+/* Spezifischer Effekt für Profiltasten beim Aufleuchten */
+.macro-btn:nth-child(10).active-press,
+.macro-btn:nth-child(11).active-press {
+    background: rgba(255, 159, 67, 0.2) !important;
+    border-color: #ff9f43 !important;
+    box-shadow: 0 0 20px rgba(255, 159, 67, 0.6) !important;
+}
+
+.macro-icon {
+    font-size: 2rem;
+    color: #00adb5;
+    margin-bottom: 10px;
+    transition: color 0.15s;
+}
+
+.macro-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #a0aec0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+/* --- GRID POSITIONIERUNG NACH CONFIG-REIHENFOLGE --- */
+/* Reihe 1 (Hauptmatrix) */
+.macro-btn:nth-child(1) { grid-column: 1; grid-row: 1; }
+.macro-btn:nth-child(2) { grid-column: 2; grid-row: 1; }
+.macro-btn:nth-child(3) { grid-column: 3; grid-row: 1; }
+
+/* Reihe 2 (Hauptmatrix) */
+.macro-btn:nth-child(4) { grid-column: 1; grid-row: 2; }
+.macro-btn:nth-child(5) { grid-column: 2; grid-row: 2; }
+.macro-btn:nth-child(6) { grid-column: 3; grid-row: 2; }
+
+/* Reihe 3 (Hauptmatrix) */
+.macro-btn:nth-child(7) { grid-column: 1; grid-row: 3; }
+.macro-btn:nth-child(8) { grid-column: 2; grid-row: 3; }
+.macro-btn:nth-child(9) { grid-column: 3; grid-row: 3; }
+
+/* Profiltasten rechts versetzt */
+.macro-btn:nth-child(10) { grid-column: 5; grid-row: 2; border-color: #ff9f43; }
+.macro-btn:nth-child(11) { grid-column: 5; grid-row: 3; border-color: #ff9f43; }
+
+.macro-btn:nth-child(10) .macro-icon,
+.macro-btn:nth-child(11) .macro-icon {
+    color: #ff9f43;
+}
+
+/* Unteres Navigations-Menü */
+.nav-footer {
+    background: #1a1d26;
+    border: 1px solid #252a37;
+    border-radius: 12px;
+    max-width: fit-content;
+    margin: 0 auto;
+}
+
+.nav-link-custom {
+    color: #a0aec0;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.nav-link-custom:hover {
+    color: #00adb5;
+}

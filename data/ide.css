@@ -1,0 +1,32 @@
+body { background-color: #12141c; color: #fff; font-family: sans-serif; }
+
+#editor {
+    height: 650px;
+    border-radius: 8px;
+    border: 1px solid #252a37;
+    font-size: 14px;
+}
+
+.file-item {
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.file-item:hover {
+    background: #222633;
+    color: #00adb5;
+}
+
+.file-active {
+    background: #00adb5 !important;
+    color: #12141c !important;
+    font-weight: bold;
+}
+
+.sidebar {
+    background: #1a1d26;
+    border-right: 1px solid #252a37;
+    height: 100vh;
+}

@@ -5,15 +5,8 @@
     <meta charset="UTF-8">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/ide.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.js"></script>
-    <style>
-        body { background-color: #12141c; color: #fff; font-family: sans-serif; }
-        #editor { height: 650px; border-radius: 8px; border: 1px solid #252a37; font-size: 14px; }
-        .file-item { cursor: pointer; padding: 8px 12px; border-radius: 6px; transition: background 0.2s; }
-        .file-item:hover { background: #222633; color: #00adb5; }
-        .file-active { background: #00adb5 !important; color: #12141c !important; font-weight: bold; }
-        .sidebar { background: #1a1d26; border-right: 1px solid #252a37; height: 100vh; }
-    </style>
 </head>
 <body>
     <div class="container-fluid">
@@ -34,82 +27,6 @@
         </div>
     </div>
 
-    <script>
-        var editor = ace.edit("editor");
-        editor.setTheme("ace/theme/tomorrow_night_eighties");
-        editor.session.setMode("ace/mode/html");
-        var activeFile = "";
-
-        function loadFileList() {
-            // Cache-Buster auch für die Dateiliste
-            fetch('/api/listfiles?t=' + Date.now())
-                .then(r => r.json())
-                .then(data => {
-                    const list = document.getElementById('file-list');
-                    list.innerHTML = '';
-                    data.files.forEach(f => {
-                        const div = document.createElement('div');
-                        div.className = 'file-item p-2 mb-1';
-                        if(f.name === activeFile) div.className += ' file-active';
-                        div.innerHTML = `<i class="bi bi-file-earmark-code"></i> ${f.name} <small class="text-muted" style="float:right;">${f.size} B</small>`;
-                        div.onclick = () => openFile(f.name);
-                        list.appendChild(div);
-                    });
-                });
-        }
-
-        function openFile(filename) {
-            activeFile = filename;
-            document.getElementById('current-file-title').innerText = "Editiere: /" + filename;
-            
-            if(filename.endsWith('.json')) editor.session.setMode("ace/mode/json");
-            else if(filename.endsWith('.html')) editor.session.setMode("ace/mode/html");
-            else editor.session.setMode("ace/mode/text");
-
-            // Übergebe einen Zeitstempel (?t=...), um den Browser-Cache zu umgehen
-            let url = (filename === "config.json" || filename === "/config.json") ? "/api/macros" : "/" + filename;
-            url += "?t=" + Date.now();
-            
-            fetch(url)
-                .then(r => { if(!r.ok) throw new Error(); return r.text(); })
-                .then(text => { 
-                    editor.setValue(text, -1); 
-                    // Setze den Cursor ganz nach oben und lösche das "Undo"-Gedächtnis des Editors
-                    editor.session.getUndoManager().reset();
-                })
-                .catch(() => { editor.setValue("Fehler beim Laden oder Datei ist leer.", -1); });
-            
-            // Aktualisiere die Highlight-Auswahl in der Sidebar
-            document.querySelectorAll('.file-item').forEach(el => {
-                if(el.innerText.includes(filename)) el.classList.add('file-active');
-                else el.classList.remove('file-active');
-            });
-        }
-
-        function saveFile() {
-            if(!activeFile) { alert("Bitte wähle zuerst eine Datei aus!"); return; }
-            const content = editor.getValue();
-
-            fetch('/api/macros/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain', 'X-Filename': activeFile },
-                body: content
-            })
-            .then(r => {
-                if(r.ok) {
-                    alert(activeFile + " erfolgreich gespeichert!");
-                    // Zwinge den Editor, die Datei sofort mit dem neuen Zeitstempel neu zu laden
-                    setTimeout(() => {
-                        openFile(activeFile);
-                        loadFileList();
-                    }, 300);
-                } else {
-                    alert("Fehler beim Speichern auf dem ESP32.");
-                }
-            });
-        }
-
-        window.onload = () => { loadFileList(); };
-    </script>
+    <script src="/ide.js"></script>
 </body>
 </html>
