@@ -100,20 +100,20 @@ static void setupSTARoutes() {
 
   // Startseite aus LittleFS ausliefern
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (LittleFS.exists("/index.html")) request->send(LittleFS, "/index.html", "text/html");
-    else                                request->send(200, "text/plain", "index.html fehlt!");
+    if (LittleFS.exists("/html/index.html")) request->send(LittleFS, "/html/index.html", "text/html");
+    else                                request->send(200, "text/plain", "html/index.html fehlt!");
   });
 
   // Makro-Editor
   server.on("/editor", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (LittleFS.exists("/editor.html")) request->send(LittleFS, "/editor.html", "text/html");
-    else                                 request->send(404, "text/plain", "editor.html fehlt im LittleFS!");
+    if (LittleFS.exists("/html/editor.html")) request->send(LittleFS, "/html/editor.html", "text/html");
+    else                                 request->send(404, "text/plain", "html/editor.html fehlt im LittleFS!");
   });
 
   // Datei-IDE
   server.on("/ide", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (LittleFS.exists("/ide.html")) request->send(LittleFS, "/ide.html", "text/html");
-    else                              request->send(404, "text/plain", "ide.html fehlt im LittleFS!");
+    if (LittleFS.exists("/html/ide.html")) request->send(LittleFS, "/html/ide.html", "text/html");
+    else                              request->send(404, "text/plain", "html/ide.html fehlt im LittleFS!");
   });
 
   // API: Liste aller Dateien im LittleFS als JSON zurückgeben
@@ -143,7 +143,7 @@ static void setupSTARoutes() {
       int params = request->params();
       if (params > 0) {
         logToWeb("Formular-Parameter gefunden: " + String(params));
-        String targetFile = "/config.json";
+        String targetFile = "/config/config.json";
         String fileContent = "";
 
         for (int i = 0; i < params; i++) {
@@ -153,7 +153,7 @@ static void setupSTARoutes() {
           // Methode 1: IDE schickt rohes JSON fälschlicherweise im Parameternamen
           if (i == 0 && (pName.startsWith("{") || pName.startsWith("["))) {
             logToWeb("Erkenne JSON im ersten Parameter-Namen. Sichern...");
-            File f = LittleFS.open("/config.json", "w");
+            File f = LittleFS.open("/config/config.json", "w");
             if (f) {
               f.print(pName);
               f.close();
@@ -205,7 +205,7 @@ static void setupSTARoutes() {
     [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
       static File rawFile;
       if (index == 0) {
-        String filename = "/config.json";
+        String filename = "/config/config.json";
         if (request->hasHeader("X-Filename")) {
           filename = request->getHeader("X-Filename")->value();
         }
@@ -225,8 +225,8 @@ static void setupSTARoutes() {
 
   // OTA-Update-Seite ausliefern
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (LittleFS.exists("/update.html")) request->send(LittleFS, "/update.html", "text/html");
-    else                                 request->send(404, "text/plain", "update.html fehlt im LittleFS!");
+    if (LittleFS.exists("/html/update.html")) request->send(LittleFS, "/html/update.html", "text/html");
+    else                                 request->send(404, "text/plain", "html/update.html fehlt im LittleFS!");
   });
 
   // OTA-Firmware-Upload über POST /update  (flasht den Firmware-Bereich, U_FLASH)
@@ -292,8 +292,8 @@ static void setupSTARoutes() {
 
   // API: Aktuelle config.json als JSON ausliefern
   server.on("/api/macros", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (LittleFS.exists("/config.json")) {
-      request->send(LittleFS, "/config.json", "application/json");
+    if (LittleFS.exists("/config/config.json")) {
+      request->send(LittleFS, "/config/config.json", "application/json");
     } else {
       request->send(404, "text/plain", "Config fehlt!");
     }
@@ -303,7 +303,7 @@ static void setupSTARoutes() {
   server.serveStatic("/", LittleFS, "/").setFilter([](AsyncWebServerRequest* request) {
     if (request->method() != HTTP_GET) return false; // Nur GET-Anfragen bedienen
     String path = request->url();
-    if (path == "/") path = "/index.html";
+    if (path == "/") path = "/html/index.html";
     return LittleFS.exists(path);
   });
 
