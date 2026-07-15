@@ -9,6 +9,7 @@ description: >
   not apply fixes.
 ---
 
+Use this skill for every audit.
 ponytail-review, repo-wide. Scan the whole tree instead of a diff. Rank
 findings biggest cut first.
 

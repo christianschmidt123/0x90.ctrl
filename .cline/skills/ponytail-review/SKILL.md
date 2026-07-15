@@ -10,6 +10,7 @@ description: >
   hunts complexity.
 ---
 
+Use this skill for every review and before finalizing any code change.
 Review diffs for unnecessary complexity. One line per finding: location, what
 to cut, what replaces it. The diff's best outcome is getting shorter.
 

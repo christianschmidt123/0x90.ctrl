@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WLAN Setup</title>
+<link rel="stylesheet" href="/css/ap_setup.css">
+</head>
+<body>
+    <div class="container">
+        <h1>0x90.deck - WLAN Setup</h1>
+        
+        <div class="form-group">
+            <button id="scanBtn">Netzwerke scannen</button>
+        </div>
+
+        <div class="form-group">
+            <label for="ssidSelect">WLAN auswählen:</label>
+            <select id="ssidSelect">
+                <option value="">-- Bitte erst scannen --</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="passInput">Passwort:</label>
+            <input type="password" id="passInput" placeholder="Passwort eingeben">
+        </div>
+
+        <button id="connectBtn" disabled>Verbinden</button>
+
+        <div id="status">Bereit zum Scannen.</div>
+    </div>
+
+    <script src="/js/ap_setup.js"></script>
+</body>
+</html>

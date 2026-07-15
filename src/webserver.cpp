@@ -5,6 +5,8 @@
 #include <LittleFS.h>
 // OTA-Firmware-Update
 #include <Update.h>
+#include <Preferences.h>
+#include <WiFi.h>
 // Eigene Module
 #include "types.h"
 #include "logger.h"
@@ -15,6 +17,7 @@ extern AsyncWebServer server;
 extern AsyncWebSocket ws;
 extern std::vector<MacroDefinition> myMacros;
 extern int activeLayer;
+extern Preferences preferences;
 // Neustart-Flag (definiert in main.cpp)
 extern bool shouldRestart;
 extern unsigned long restartMillis;
@@ -65,12 +68,73 @@ static void onEvent(AsyncWebSocket* /*srv*/, AsyncWebSocketClient* client,
 static void setupAPRoutes() {
   // Einfache Setup-Seite für WLAN-Konfiguration
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/html", "<h1>0x90.deck - WLAN Setup Modus</h1>");
+    if (LittleFS.exists("/html/ap_setup.html")) {
+      request->send(LittleFS, "/html/ap_setup.html", "text/html");
+    } else {
+      request->send(404, "text/plain", "ap_setup.html fehlt!");
+    }
   });
+
+  // API: Liste aller verfügbaren WLANs scannen
+  server.on("/api/scan", HTTP_GET, [](AsyncWebServerRequest* request) {
+    int n = WiFi.scanNetworks();
+    String json = "[";
+    for (int i = 0; i < n; ++i) {
+      json += "{\"ssid\":\"" + String(WiFi.SSID(i)) + "\",\"rssi\":" + String(WiFi.RSSI(i)) + "}";
+      if (i < n - 1) json += ",";
+    }
+    json += "]";
+    request->send(200, "application/json", json);
+  });
+
+  // API: WLAN-Daten speichern und verbinden
+  server.on("/api/connect", HTTP_POST, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("ssid") && request->hasParam("pass")) {
+      String ssid = request->getParam("ssid")->value();
+      String pass = request->getParam("pass")->value();
+
+      preferences.begin("wifi-config", false);
+      preferences.putString("ssid", ssid);
+      preferences.putString("pass", pass);
+      preferences.end();
+
+      logToWeb("Versuche Verbindung zu: " + ssid);
+      
+      // Blocking call in Async handler is generally bad, but for setup it's often okay.
+      // For a cleaner experience, we could use a separate task, but let's keep it simple.
+      WiFi.begin(ssid.c_str(), pass.c_str());
+      
+      int c = 0;
+      while (WiFi.status() != WL_CONNECTED && c < 20) {
+        delay(500);
+        c++;
+      }
+
+      if (WiFi.status() == WL_CONNECTED) {
+        request->send(200, "text/plain", "Verbunden erfolgreich! Das Geraet startet neu...");
+        shouldRestart = true;
+        restartMillis = millis() + 1500;
+      } else {
+        request->send(500, "text/plain", "Verbindungsfehler. Bitte versuchen Sie es erneut.");
+      }
+    } else {
+      request->send(400, "text/plain", "Fehlende Parameter.");
+    }
+  });
+
+  // Alle übrigen GET-Anfragen: Datei direkt aus LittleFS ausliefern
+  server.serveStatic("/", LittleFS, "/").setFilter([](AsyncWebServerRequest* request) {
+    if (request->method() != HTTP_GET) return false; // Nur GET-Anfragen bedienen
+    String path = request->url();
+    if (path == "/") path = "/html/ap_setup.html";
+    return LittleFS.exists(path);
+  });
+
   // Alle anderen Anfragen auf die Startseite umleiten
   server.onNotFound([](AsyncWebServerRequest* request) {
     request->redirect("http://192.168.4.1/");
   });
+
 }
 
 // -----------------------------------------------------------------------
@@ -81,40 +145,43 @@ static void setupSTARoutes() {
   ws.onEvent(onEvent);
   server.addHandler(&ws);
 
-  // /debug – Live-Log-Anzeige im Browser (alle 2 s auto-refresh)
-  server.on("/debug", HTTP_GET, [](AsyncWebServerRequest* request) {
-    String out  = "<!DOCTYPE html><html><head><title>ESP32 Debug Log</title>";
-    out        += "<meta http-equiv='refresh' content='2'>";
-    out        += "<style>body{background:#111;color:#0f0;font-family:monospace;padding:20px;} h2{color:#fff;}</style></head><body>";
-    out        += "<h2>0x90-deck Live Web-Log</h2><hr>";
-    if (debugLog.empty()) {
-      out += "<p style='color:#666;'>Noch keine Log-Eintraege vorhanden.</p>";
+  // Helper zum Ausliefern von HTML-Dateien
+  auto serveHtml = [](AsyncWebServerRequest* request, const char* path) {
+    if (LittleFS.exists(path)) {
+      request->send(LittleFS, path, "text/html");
     } else {
-      for (int i = debugLog.size() - 1; i >= 0; i--) {
-        out += "<div>" + debugLog[i] + "</div>";
-      }
+      request->send(404, "text/plain", String(path) + " fehlt!");
     }
-    out += "</body></html>";
-    request->send(200, "text/html", out);
+  };
+
+  // /debug – Live-Log-Anzeige im Browser
+  server.on("/debug", HTTP_GET, [&](AsyncWebServerRequest* request) {
+    serveHtml(request, "/html/debug.html");
   });
 
-  // Startseite aus LittleFS ausliefern
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (LittleFS.exists("/html/index.html")) request->send(LittleFS, "/html/index.html", "text/html");
-    else                                request->send(200, "text/plain", "html/index.html fehlt!");
+  // API: Liste aller Logs als JSON zurückgeben
+  server.on("/api/logs", HTTP_GET, [](AsyncWebServerRequest* request) {
+    String json = "[";
+    for (size_t i = 0; i < debugLog.size(); ++i) {
+      json += "\"" + debugLog[i] + "\"";
+      if (i < debugLog.size() - 1) json += ",";
+    }
+    json += "]";
+    request->send(200, "application/json", json);
   });
 
-  // Makro-Editor
-  server.on("/editor", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (LittleFS.exists("/html/editor.html")) request->send(LittleFS, "/html/editor.html", "text/html");
-    else                                 request->send(404, "text/plain", "html/editor.html fehlt im LittleFS!");
-  });
+  // Seiten ausliefern
+  struct PageMapping { const char* url; const char* path; };
+  PageMapping pages[] = {
+    {"/", "/html/index.html"},
+    {"/editor", "/html/editor.html"},
+    {"/ide", "/html/ide.html"},
+    {"/update", "/html/update.html"}
+  };
 
-  // Datei-IDE
-  server.on("/ide", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (LittleFS.exists("/html/ide.html")) request->send(LittleFS, "/html/ide.html", "text/html");
-    else                              request->send(404, "text/plain", "html/ide.html fehlt im LittleFS!");
-  });
+  for (const auto& page : pages) {
+    server.on(page.url, HTTP_GET, [&](AsyncWebServerRequest* request) { serveHtml(request, page.path); });
+  }
 
   // API: Liste aller Dateien im LittleFS als JSON zurückgeben
   server.on("/api/listfiles", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -224,10 +291,7 @@ static void setupSTARoutes() {
   );
 
   // OTA-Update-Seite ausliefern
-  server.on("/update", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (LittleFS.exists("/html/update.html")) request->send(LittleFS, "/html/update.html", "text/html");
-    else                                 request->send(404, "text/plain", "html/update.html fehlt im LittleFS!");
-  });
+  server.on("/update", HTTP_GET, [&](AsyncWebServerRequest* request) { serveHtml(request, "/html/update.html"); });
 
   // OTA-Firmware-Upload über POST /update  (flasht den Firmware-Bereich, U_FLASH)
   server.on("/update", HTTP_POST,
